@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Showcase - Game Launcher</title>
+    <style>
+        :root {
+            --bg-dark: #070709;
+            --accent: #00f59b;
+            --accent-glow: rgba(0, 245, 155, 0.4);
+            --gold: #fbbf24;
+            --meta-green: #66cc33;
+            --meta-yellow: #ffcc33;
+            --meta-red: #ff0000;
+            --glass: rgba(18, 19, 26, 0.75);
+            --border-glass: rgba(255, 255, 255, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* === FONDO DINÁMICO === */
+        .backdrop-container {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            background: var(--bg-dark);
+        }
+
+        .backdrop-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: blur(10px) brightness(0.38);
+            transform: scale(1.08);
+            transition: opacity 0.5s ease, transform 6s ease-out;
+            will-change: opacity, transform; /* Optimización GPU */
+        }
+
+        .backdrop-overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 75% 30%, rgba(7,7,9,0.2) 0%, rgba(7,7,9,0.95) 80%),
+                        linear-gradient(to top, #070709 8%, transparent 60%);
+        }
+
+        /* === BARRA SUPERIOR === */
+        header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.4rem 3.5rem;
+            gap: 1.5rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .brand-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            max-width: 620px;
+        }
+
+        .search-input, .sort-select {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            color: #fff;
+            padding: 0.65rem 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input { flex: 1; }
+        .search-input:focus, .sort-select:focus { border-color: var(--accent); }
+        .sort-select option { background: #12131a; color: #fff; }
+
+        .btn-filter-fav {
+            background: var(--glass);
+            border: 1px solid var(--border-glass);
+            color: #94a3b8;
+            padding: 0.65rem 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-filter-fav.active {
+            color: var(--gold);
+            border-color: var(--gold);
+            background: rgba(251, 191, 36, 0.12);
+        }
+
+        .btn-add {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glass);
+            color: #fff;
+            padding: 0.7rem 1.3rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-add:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        /* === ESCENARIO HERO === */
+        .showcase-stage {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 3.5rem;
+            padding: 0 3.5rem;
+            flex: 1;
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .showcase-stage.switching {
+            opacity: 0;
+            transform: translateY(14px) scale(0.98);
+        }
+
+        .hero-cover-wrapper {
+            perspective: 1000px;
+            flex-shrink: 0;
+        }
+
+        .hero-cover {
+            width: 270px;
+            height: 390px;
+            border-radius: 18px;
+            object-fit: cover;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255,255,255,0.15);
+            transition: transform 0.15s ease;
+        }
+
+        .hero-details { max-width: 760px; }
+
+        .meta-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .metacritic-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.55);
+            padding: 5px 12px 5px 6px;
+            border-radius: 10px;
+            border: 1px solid var(--border-glass);
+            backdrop-filter: blur(8px);
+        }
+
+        .meta-score {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.1rem;
+            color: #000;
+        }
+
+        .meta-label {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ccc;
+        }
+        .meta-label strong { font-size: 0.8rem; color: #fff; }
+
+        .tag-pill {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 7px 13px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            color: #d1d5db;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .tag-pill.stats-pill {
+            color: var(--accent);
+            border-color: rgba(0, 245, 155, 0.25);
+            background: rgba(0, 245, 155, 0.08);
+        }
+
+        .hero-title {
+            font-size: 3.1rem;
+            font-weight: 900;
+            line-height: 1.08;
+            margin-bottom: 0.9rem;
+            text-shadow: 0 6px 25px rgba(0,0,0,0.7);
+        }
+
+        .hero-summary {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+            margin-bottom: 1.2rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .exe-path-box {
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #94a3b8;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 7px 12px;
+            border-radius: 8px;
+            margin-bottom: 1.4rem;
+            display: inline-block;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .actions-row {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-play-hero {
+            background: var(--accent);
+            color: #050505;
+            border: none;
+            padding: 0.95rem 2.3rem;
+            font-size: 1.08rem;
+            font-weight: 800;
+            border-radius: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: 0 0 25px var(--accent-glow);
+        }
+
+        .btn-play-hero:hover:not(:disabled) {
+            transform: scale(1.04) translateY(-2px);
+            box-shadow: 0 0 38px rgba(0, 245, 155, 0.75);
+        }
+
+        .btn-play-hero.running {
+            background: #f59e0b;
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.5);
+            cursor: default;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border: 1px solid var(--border-glass);
+            padding: 0.95rem 1.15rem;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.18); }
+        .btn-fav.is-fav {
+            color: var(--gold);
+            border-color: var(--gold);
+            background: rgba(251, 191, 36, 0.15);
+        }
+
+        /* === ESTADO VACÍO === */
+        .empty-state {
+            display: none;
+            position: relative;
+            z-index: 10;
+            flex: 1;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+        .empty-state h2 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .empty-state p { color: #94a3b8; margin-bottom: 1.5rem; }
+
+        /* === CARRUSEL === */
+        .dock-section {
+            position: relative;
+            z-index: 10;
+            padding: 0.8rem 3.5rem 2rem;
+        }
+        .dock-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #94a3b8;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+        .carousel {
+            display: flex;
+            gap: 1.3rem;
+            overflow-x: auto;
+            padding: 0.6rem 0.2rem;
+            scroll-behavior: smooth;
+        }
+        .carousel::-webkit-scrollbar { height: 6px; }
+        .carousel::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+        }
+
+        .thumb-card {
+            position: relative;
+            width: 140px;
+            height: 198px;
+            border-radius: 14px;
+            overflow: hidden;
+            flex-shrink: 0;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            opacity: 0.55;
+            transform: scale(0.94);
+            background: #111;
+        }
+        .thumb-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .thumb-card:hover { opacity: 0.9; transform: scale(0.98) translateY(-4px); }
+        .thumb-card.active {
+            opacity: 1;
+            transform: scale(1.05) translateY(-8px);
+            border-color: var(--accent);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.7), 0 0 18px rgba(0, 245, 155, 0.35);
+        }
+        .thumb-meta {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+        }
+        .thumb-fav {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.65);
+            color: var(--gold);
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        /* === MODALES Y TOAST === */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-backdrop.open { display: flex; }
+        .modal-card {
+            background: #12131a;
+            border: 1px solid var(--border-glass);
+            padding: 1.8rem;
+            border-radius: 18px;
+            width: 90%;
+            max-width: 440px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+        }
+        .modal-card h3 { margin-bottom: 0.6rem; font-size: 1.25rem; }
+        .modal-card p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.2rem; }
+        .modal-input {
+            width: 100%;
+            background: #070709;
+            border: 1px solid var(--border-glass);
+            color: #fff;
+            padding: 0.8rem 1rem;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            margin-bottom: 1.3rem;
+            outline: none;
+        }
+        .modal-input:focus { border-color: var(--accent); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-modal-primary, .btn-modal-cancel {
+            padding: 0.65rem 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-modal-primary { background: var(--accent); color: #000; font-weight: 700; }
+        .btn-modal-cancel { background: rgba(255,255,255,0.08); color: #fff; }
+
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: #12131a;
+            border: 1px solid var(--accent);
+            color: #fff;
+            padding: 0.9rem 1.4rem;
+            border-radius: 12px;
+            z-index: 200;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+            transform: translateY(120%);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        .drop-overlay {
+            position: fixed;
+            inset: 16px;
+            border: 3px dashed var(--accent);
+            border-radius: 24px;
+            background: rgba(0, 245, 155, 0.08);
+            backdrop-filter: blur(4px);
+            z-index: 150;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--accent);
+            pointer-events: none;
+        }
+        .drop-overlay.active { display: flex; }
+    </style>
+</head>
+<body>
+
+    <div class="drop-overlay" id="drop-overlay">
+        📥 Suelta el ejecutable (.EXE) aquí para añadirlo
+    </div>
+
+    <div class="backdrop-container">
+        <!-- Optimización: decoding="async" para la imagen de fondo -->
+        <img id="bg-image" class="backdrop-img" src="" alt="Backdrop" decoding="async">
+        <div class="backdrop-overlay"></div>
+    </div>
+
+    <header>
+        <div class="brand">
+            <div class="brand-dot"></div>
+            <span>Showcase</span>
+        </div>
+
+        <div class="toolbar">
+            <input type="text" id="search-input" class="search-input" placeholder="🔍 Filtrar por título o género...">
+            <select id="sort-select" class="sort-select">
+                <option value="recent">Orden: Añadidos</option>
+                <option value="metacritic">Orden: Metacritic</option>
+                <option value="playtime">Orden: Tiempo jugado</option>
+                <option value="az">Orden: A - Z</option>
+            </select>
+            <button id="btn-filter-fav" class="btn-filter-fav" title="Mostrar solo favoritos">
+                ★ Favoritos
+            </button>
+        </div>
+
+        <button class="btn-add" id="btn-add-exe">
+            + Vincular Juego (.EXE)
+        </button>
+    </header>
+
+    <main class="showcase-stage" id="showcase-stage">
+        <div class="hero-cover-wrapper">
+            <!-- Optimización: decoding="async" para la portada heroica -->
+            <img id="hero-cover" class="hero-cover" src="" alt="Portada" decoding="async">
+        </div>
+
+        <div class="hero-details">
+            <div class="meta-row">
+                <div class="metacritic-badge">
+                    <div id="hero-metascore" class="meta-score">--</div>
+                    <div class="meta-label">
+                        <strong>Metacritic</strong>
+                        <span>Metascore</span>
+                    </div>
+                </div>
+                <span id="hero-genres" class="tag-pill">Cargando...</span>
+                <span id="hero-year" class="tag-pill">----</span>
+                <span id="hero-playtime" class="tag-pill stats-pill">⏱️ 0 min</span>
+                <span id="hero-lastplayed" class="tag-pill">Recién añadido</span>
+            </div>
+
+            <h1 id="hero-title" class="hero-title">Biblioteca</h1>
+            <p id="hero-summary" class="hero-summary"></p>
+            <div id="hero-path" class="exe-path-box"></div>
+
+            <div class="actions-row">
+                <button class="btn-play-hero" id="btn-play">
+                    ▶ JUGAR AHORA
+                </button>
+                <button class="btn-secondary btn-fav" id="btn-fav" title="Marcar como favorito">
+                    ★
+                </button>
+                <button class="btn-secondary" id="btn-edit-name" title="Corregir título si no coincide">
+                    🔍 Corregir Portada
+                </button>
+                <button class="btn-secondary" id="btn-open-folder" title="Abrir ubicación del archivo">
+                    📂 Carpeta
+                </button>
+                <button class="btn-secondary" id="btn-delete" title="Quitar de la biblioteca">
+                    🗑️
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div class="empty-state" id="empty-state">
+        <h2>No se encontraron juegos</h2>
+        <p>Tu colección o filtro actual está vacío. Añade un ejecutable (.exe) o arrástralo a la ventana.</p>
+    </div>
+
+    <section class="dock-section">
+        <div class="dock-title">Mostrando <span id="game-count">0</span> juegos — Usa las flechas ◀ ▶, arrastra un .EXE o haz clic</div>
+        <div class="carousel" id="carousel"></div>
+    </section>
+
+    <!-- MODAL PERSONALIZADO (Reemplaza a window.prompt y confirm) -->
+    <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal-card">
+            <h3 id="modal-title">Editar título</h3>
+            <p id="modal-desc">Escribe el nombre oficial del videojuego para actualizar su portada HD y nota de Metacritic.</p>
+            <input type="text" id="modal-input" class="modal-input">
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" id="modal-cancel">Cancelar</button>
+                <button class="btn-modal-primary" id="modal-confirm">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let allGames = [];
+        let filteredGames = [];
+        let activeGameId = null;
+        let runningGameId = null;
+        let onlyFavorites = false;
+
+        const stage = document.getElementById('showcase-stage');
+        const emptyState = document.getElementById('empty-state');
+        const bgImage = document.getElementById('bg-image');
+        const heroCover = document.getElementById('hero-cover');
+        const heroTitle = document.getElementById('hero-title');
+        const heroSummary = document.getElementById('hero-summary');
+        const heroMetascore = document.getElementById('hero-metascore');
+        const heroGenres = document.getElementById('hero-genres');
+        const heroYear = document.getElementById('hero-year');
+        const heroPlaytime = document.getElementById('hero-playtime');
+        const heroLastplayed = document.getElementById('hero-lastplayed');
+        const heroPath = document.getElementById('hero-path');
+        const carousel = document.getElementById('carousel');
+        const gameCount = document.getElementById('game-count');
+        const btnPlay = document.getElementById('btn-play');
+        const btnFav = document.getElementById('btn-fav');
+
+        function getMetaColor(score) {
+            if (score === null || score === '--') return '#444';
+            if (score >= 75) return 'var(--meta-green)';
+            if (score >= 50) return 'var(--meta-yellow)';
+            return 'var(--meta-red)';
+        }
+
+        function formatPlaytime(minutes = 0) {
+            if (!minutes || minutes <= 0) return '⏱️ Sin jugar';
+            if (minutes < 60) return `⏱️ ${minutes} min`;
+            const hrs = (minutes / 60).toFixed(1);
+            return `⏱️ ${hrs} h`;
+        }
+
+        function formatLastPlayed(isoDate) {
+            if (!isoDate) return 'Nunca jugado';
+            const date = new Date(isoDate);
+            return `Últ. vez: ${date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}`;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3200);
+        }
+
+        function openModal({ title, desc, defaultValue = '', showInput = true }) {
+            return new Promise((resolve) => {
+                const backdrop = document.getElementById('modal-backdrop');
+                const input = document.getElementById('modal-input');
+                document.getElementById('modal-title').textContent = title;
+                document.getElementById('modal-desc').textContent = desc;
+                
+                input.style.display = showInput ? 'block' : 'none';
+                input.value = defaultValue;
+                backdrop.classList.add('open');
+                if (showInput) setTimeout(() => input.focus(), 50);
+
+                const cleanup = (val) => {
+                    backdrop.classList.remove('open');
+                    document.getElementById('modal-confirm').onclick = null;
+                    document.getElementById('modal-cancel').onclick = null;
+                    input.onkeydown = null;
+                    resolve(val);
+                };
+
+                document.getElementById('modal-confirm').onclick = () => cleanup(showInput ? input.value.trim() : true);
+                document.getElementById('modal-cancel').onclick = () => cleanup(null);
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') cleanup(input.value.trim());
+                    if (e.key === 'Escape') cleanup(null);
+                };
+            });
+        }
+
+        async function init() {
+            allGames = await ipcRenderer.invoke('load-library');
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const sortBy = document.getElementById('sort-select').value;
+
+            filteredGames = allGames.filter(g => {
+                const matchesSearch = g.title.toLowerCase().includes(query) || (g.genres || '').toLowerCase().includes(query);
+                const matchesFav = !onlyFavorites || g.favorite;
+                return matchesSearch && matchesFav;
+            });
+
+            if (sortBy === 'metacritic') {
+                filteredGames.sort((a, b) => (b.metacritic || 0) - (a.metacritic || 0));
+            } else if (sortBy === 'playtime') {
+                filteredGames.sort((a, b) => (b.playTime || 0) - (a.playTime || 0));
+            } else if (sortBy === 'az') {
+                filteredGames.sort((a, b) => a.title.localeCompare(b.title));
+            }
+
+            renderCarousel();
+
+            if (filteredGames.length === 0) {
+                stage.style.display = 'none';
+                emptyState.style.display = 'flex';
+                activeGameId = null;
+            } else {
+                stage.style.display = 'flex';
+                emptyState.style.display = 'none';
+                const currentIdx = filteredGames.findIndex(g => g.id === activeGameId);
+                selectGame(currentIdx !== -1 ? currentIdx : 0);
+            }
+        }
+
+        function renderCarousel() {
+            carousel.innerHTML = '';
+            gameCount.textContent = filteredGames.length;
+
+            filteredGames.forEach((game, index) => {
+                const card = document.createElement('div');
+                card.className = `thumb-card ${game.id === activeGameId ? 'active' : ''}`;
+                
+                const thumbImg = document.createElement('img');
+                thumbImg.src = game.cover;
+                // Optimización: Lazy loading y descompresión asíncrona para no bloquear el inicio de la app
+                thumbImg.loading = "lazy";
+                thumbImg.decoding = "async";
+                
+                thumbImg.onerror = () => { thumbImg.src = game.coverFallback || game.background; };
+                thumbImg.alt = game.title;
+
+                const metaScore = game.metacritic || '--';
+                const metaBadge = document.createElement('div');
+                metaBadge.className = 'thumb-meta';
+                metaBadge.style.background = getMetaColor(metaScore);
+                metaBadge.textContent = metaScore;
+
+                card.appendChild(thumbImg);
+                card.appendChild(metaBadge);
+
+                if (game.favorite) {
+                    const favBadge = document.createElement('div');
+                    favBadge.className = 'thumb-fav';
+                    favBadge.textContent = '★';
+                    card.appendChild(favBadge);
+                }
+
+                card.onclick = () => selectGame(index);
+                carousel.appendChild(card);
+            });
+        }
+
+        function selectGame(index) {
+            const g = filteredGames[index];
+            if (!g) return;
+            activeGameId = g.id;
+
+            document.querySelectorAll('.thumb-card').forEach((el, idx) => {
+                el.classList.toggle('active', idx === index);
+            });
+
+            stage.classList.add('switching');
+            bgImage.style.opacity = '0.2';
+
+            setTimeout(() => {
+                heroCover.src = g.cover;
+                heroCover.onerror = () => { 
+                    heroCover.src = g.coverFallback || g.background || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80'; 
+                };
+
+                bgImage.src = g.background || g.coverFallback || g.cover;
+                
+                heroTitle.textContent = g.title;
+                heroSummary.textContent = g.summary;
+                const metaScore = g.metacritic || '--';
+                heroMetascore.textContent = metaScore;
+                heroMetascore.style.background = getMetaColor(metaScore);
+                heroGenres.textContent = g.genres;
+                heroYear.textContent = g.released;
+                heroPlaytime.textContent = formatPlaytime(g.playTime);
+                heroLastplayed.textContent = formatLastPlayed(g.lastPlayed);
+                heroPath.textContent = `📁 ${g.exePath}`;
+
+                btnFav.classList.toggle('is-fav', !!g.favorite);
+                updatePlayButtonState(g.id);
+
+                stage.classList.remove('switching');
+                bgImage.style.opacity = '1';
+            }, 180);
+        }
+
+        function updatePlayButtonState(gameId) {
+            if (runningGameId === gameId) {
+                btnPlay.classList.add('running');
+                btnPlay.textContent = '🔥 EN EJECUCIÓN...';
+                btnPlay.disabled = true;
+            } else {
+                btnPlay.classList.remove('running');
+                btnPlay.textContent = '▶ JUGAR AHORA';
+                btnPlay.disabled = false;
+            }
+        }
+
+        heroCover.addEventListener('mousemove', (e) => {
+            const rect = heroCover.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            heroCover.style.transform = `rotateY(${x / 10}deg) rotateX(${-y / 10}deg) scale(1.03)`;
+        });
+
+        heroCover.addEventListener('mouseleave', () => {
+            heroCover.style.transform = 'rotateY(0deg) rotateX(0deg) scale(1)';
+        });
+
+        btnPlay.onclick = async () => {
+            const g = filteredGames.find(x => x.id === activeGameId);
+            if (!g) return;
+
+            const res = await ipcRenderer.invoke('launch-game', { id: g.id, exePath: g.exePath });
+            if (!res.success) {
+                showToast(`⚠️ ${res.message}`);
+            } else {
+                runningGameId = g.id;
+                updatePlayButtonState(g.id);
+                showToast(`🚀 Iniciando ${g.title}...`);
+            }
+        };
+
+        ipcRenderer.on('game-closed', (event, { id, library }) => {
+            runningGameId = null;
+            allGames = library;
+            applyFilters();
+            showToast('⏱️ Sesión finalizada. Tiempo de juego actualizado.');
+        });
+
+        document.getElementById('btn-add-exe').onclick = async () => {
+            showToast('⏳ Buscando metadatos y portadas HD...');
+            const updated = await ipcRenderer.invoke('add-game-exe');
+            if (updated) {
+                allGames = updated;
+                activeGameId = allGames[0]?.id;
+                applyFilters();
+                showToast('✅ Juego añadido a tu biblioteca');
+            }
+        };
+
+        btnFav.onclick = async () => {
+            if (!activeGameId) return;
+            allGames = await ipcRenderer.invoke('toggle-favorite', activeGameId);
+            applyFilters();
+        };
+
+        document.getElementById('btn-edit-name').onclick = async () => {
+            const g = filteredGames.find(x => x.id === activeGameId);
+            if (!g) return;
+
+            const nuevoNombre = await openModal({
+                title: '🔍 Corregir Portada / Nombre',
+                desc: 'Ingresa el título oficial para buscar en Steam y Metacritic:',
+                defaultValue: g.title,
+                showInput: true
+            });
+
+            if (nuevoNombre) {
+                showToast(`⏳ Actualizando datos para "${nuevoNombre}"...`);
+                allGames = await ipcRenderer.invoke('refresh-metadata', { id: g.id, searchName: nuevoNombre });
+                applyFilters();
+                showToast('✅ Portada y datos actualizados');
+            }
+        };
+
+        document.getElementById('btn-open-folder').onclick = async () => {
+            const g = filteredGames.find(x => x.id === activeGameId);
+            if (!g) return;
+            const res = await ipcRenderer.invoke('open-folder', g.exePath);
+            if (!res.success) showToast(`⚠️ ${res.message}`);
+        };
+
+        document.getElementById('btn-delete').onclick = async () => {
+            const g = filteredGames.find(x => x.id === activeGameId);
+            if (!g) return;
+
+            const confirmar = await openModal({
+                title: '🗑️ Quitar de la biblioteca',
+                desc: `¿Seguro que deseas desvincular "${g.title}" del launcher? (Esto no borrará el juego de tu PC).`,
+                showInput: false
+            });
+
+            if (confirmar) {
+                allGames = await ipcRenderer.invoke('delete-game', g.id);
+                activeGameId = null;
+                applyFilters();
+                showToast('🗑️ Juego eliminado del mostrador');
+            }
+        };
+
+        document.getElementById('search-input').addEventListener('input', applyFilters);
+        document.getElementById('sort-select').addEventListener('change', applyFilters);
+        document.getElementById('btn-filter-fav').onclick = (e) => {
+            onlyFavorites = !onlyFavorites;
+            e.currentTarget.classList.toggle('active', onlyFavorites);
+            applyFilters();
+        };
+
+        const dropOverlay = document.getElementById('drop-overlay');
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropOverlay.classList.add('active');
+        });
+        window.addEventListener('dragleave', (e) => {
+            if (e.relatedTarget === null) dropOverlay.classList.remove('active');
+        });
+        window.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropOverlay.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (file && file.path.toLowerCase().endsWith('.exe')) {
+                showToast('⏳ Analizando ejecutable y descargando portada...');
+                const updated = await ipcRenderer.invoke('add-dropped-exe', file.path);
+                if (updated) {
+                    allGames = updated;
+                    activeGameId = allGames[0]?.id;
+                    applyFilters();
+                    showToast('✅ Juego vinculado por Drag & Drop');
+                }
+            } else {
+                showToast('⚠️ Por favor, arrastra un archivo ejecutable (.EXE)');
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'INPUT' || document.getElementById('modal-backdrop').classList.contains('open')) {
+                return;
+            }
+            const currentIdx = filteredGames.findIndex(g => g.id === activeGameId);
+            if (e.key === 'ArrowRight' && currentIdx < filteredGames.length - 1) selectGame(currentIdx + 1);
+            if (e.key === 'ArrowLeft' && currentIdx > 0) selectGame(currentIdx - 1);
+            if (e.key === 'Enter' && currentIdx !== -1) btnPlay.click();
+        });
+
+        init();
+    </script>
+</body>
+</html>

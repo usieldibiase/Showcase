@@ -1,0 +1,26 @@
+{
+  "name": "showcase",
+  "version": "1.0.0",
+  "description": "Showcase Game Launcher con Metacritic y Portadas HD",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.gamer.showcase",
+    "productName": "Showcase",
+    "win": {
+      "target": "nsis",
+      "artifactName": "Showcase.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  }
+}
